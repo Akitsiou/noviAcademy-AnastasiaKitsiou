@@ -3,8 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-var players = new List<Player>();
-int nextId = 1; 
+IPlayerRepository playerRepo = new InMemoryPlayerRepository();
+IWalletRepository walletRepo = new InMemoryWalletRepository();
 
 while (true)
 {
@@ -12,23 +12,24 @@ while (true)
     Console.WriteLine("1. Add player");
     Console.WriteLine("2. List all players");
     Console.WriteLine("3. Find player by name");
+    Console.WriteLine("4. Add wallet to player"); 
     Console.WriteLine("0. Exit");
     Console.Write("> ");
 
-    
     Action? action = Console.ReadLine() switch
     {
         "1" => AddPlayer,
         "2" => ListPlayers,
         "3" => FindPlayer,
+        "4" => AddWalletToPlayer, 
         "0" => null,
         _ => () => Console.WriteLine("Unknown option.")
     };
 
     if (action is null)
-        return; 
+        return;
 
-    action(); 
+    action();
 }
 
 void AddPlayer()
@@ -51,13 +52,10 @@ void AddPlayer()
 
     try
     {
-        
         var player = new Player(name);
-
-        
         player.UpdateScore(score);
 
-        players.Add(player);
+        playerRepo.AddPlayer(player);
         Console.WriteLine("Player added successfully.");
     }
     catch (Exception ex)
@@ -68,18 +66,32 @@ void AddPlayer()
 
 void ListPlayers()
 {
-    if (players.Count == 0)
+    var allPlayers = playerRepo.GetAllPlayers().ToList();
+
+    if (allPlayers.Count == 0)
     {
         Console.WriteLine("No players registered.");
         return;
     }
 
     Console.WriteLine("\n--- Registered Players ---");
-    foreach (var p in players)
+    foreach (var p in allPlayers)
     {
-        // Επειδή γράψαμε την "public override string ToString()" στο Player.cs,
-        // η C#  αυτόματα τυπώνει όμορφα τον παίκτη σκέτο με το 'p'!
+        
         Console.WriteLine(p);
+
+        var wallets = walletRepo.GetByPlayer(p.Id).ToList();
+        if (wallets.Any())
+        {
+            foreach (var w in wallets)
+            {
+                Console.WriteLine($"   └── {w}");
+            }
+        }
+        else
+        {
+            Console.WriteLine("   └── No wallets linked to this player.");
+        }
     }
 }
 
@@ -88,7 +100,7 @@ void FindPlayer()
     Console.Write("Search by name: ");
     var term = Console.ReadLine() ?? string.Empty;
 
-    var player = players
+    var player = playerRepo.GetAllPlayers()
         .FirstOrDefault(p => p.Name.Equals(term, StringComparison.OrdinalIgnoreCase));
 
     if (player is null)
@@ -97,6 +109,55 @@ void FindPlayer()
         return;
     }
 
-    
     Console.WriteLine(player);
+
+    var wallets = walletRepo.GetByPlayer(player.Id).ToList();
+    foreach (var w in wallets)
+    {
+        Console.WriteLine($"   └── {w}");
+    }
+}
+
+void AddWalletToPlayer()
+{
+    Console.Write("Enter player name to give a wallet: ");
+    var term = (Console.ReadLine() ?? string.Empty).Trim(); // Το .Trim() καθαρίζει τα κενά
+
+    // Ψάχνουμε τον παίκτη καλώντας το playerRepo
+    var player = playerRepo.GetAllPlayers()
+        .FirstOrDefault(p => p.Name.Trim().Equals(term, StringComparison.OrdinalIgnoreCase));
+
+    if (player is null)
+    {
+        Console.WriteLine("No player found. Create the player first.");
+        return;
+    }
+
+    Console.WriteLine("Select Currency: 0 = EUR, 1 = USD, 2 = GBP");
+    Console.Write("> ");
+    if (!int.TryParse(Console.ReadLine(), out int currencyChoice) || currencyChoice < 0 || currencyChoice > 2)
+    {
+        Console.WriteLine("Invalid currency selection.");
+        return;
+    }
+
+    Console.Write("Enter initial balance: ");
+    if (!decimal.TryParse(Console.ReadLine(), out decimal initialBalance) || initialBalance < 0)
+    {
+        Console.WriteLine("Invalid balance. Must be a positive number.");
+        return;
+    }
+
+    Currency selectedCurrency = (Currency)currencyChoice;
+
+    try
+    {
+        var newWallet = new Wallet(player.Id, selectedCurrency, initialBalance);
+        walletRepo.Add(newWallet, player.Id);
+        Console.WriteLine($"Wallet ({selectedCurrency}) added successfully to player {player.Name}.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+    }
 }

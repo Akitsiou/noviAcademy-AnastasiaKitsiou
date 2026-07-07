@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PlayerRegistry
 {
-    public class Player
+    public class Player  : IPlayer
     {
         public Guid Id { get; }
         public string Name { get; }
