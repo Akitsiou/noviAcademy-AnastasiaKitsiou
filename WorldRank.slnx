@@ -1,4 +1,3 @@
 <Solution>
-  <Project Path="PlayerRegistry/PlayerRegistry.csproj" Id="f50abbe7-792d-43f8-a390-f4297bc79daa" />
   <Project Path="WorldRank/WorldRank.csproj" />
 </Solution>
